@@ -11,6 +11,10 @@ class DemoGuide extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
+    // Render with the page instead of lazy-loading over Livewire, which is
+    // unreliable on serverless (the lazy fetch leaves an empty placeholder).
+    protected static bool $isLazy = false;
+
     protected function getViewData(): array
     {
         $total = Ticket::count();
