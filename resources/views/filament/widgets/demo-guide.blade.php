@@ -1,27 +1,24 @@
 <x-filament-widgets::widget>
     <x-filament::section>
-        <div class="grid gap-6 md:grid-cols-4">
+        <div style="display:flex; flex-wrap:wrap; gap:2rem;">
             @foreach ([
                 ['label' => 'Open tickets', 'value' => $open],
                 ['label' => 'Auto-triaged', 'value' => $autoRate . '%'],
                 ['label' => 'Needs a human', 'value' => $escalated],
                 ['label' => 'Avg. confidence', 'value' => $avgConfidence . '%'],
             ] as $stat)
-                <div>
-                    <div class="text-2xl font-bold text-gray-950 dark:text-white">{{ $stat['value'] }}</div>
-                    <div class="text-sm text-gray-500 dark:text-gray-400">{{ $stat['label'] }}</div>
+                <div style="min-width:8rem;">
+                    <div style="font-size:1.6rem; font-weight:700; line-height:1.2;">{{ $stat['value'] }}</div>
+                    <div style="font-size:.8rem; text-transform:uppercase; letter-spacing:.04em; opacity:.55; margin-top:.15rem;">{{ $stat['label'] }}</div>
                 </div>
             @endforeach
         </div>
 
-        <div class="mt-6 border-t border-gray-200 pt-4 text-sm text-gray-500 dark:border-white/10 dark:text-gray-400">
-            <p class="font-medium text-gray-700 dark:text-gray-300">You're in a live demo.</p>
-            <p class="mt-1">
-                Open <span class="font-medium text-gray-700 dark:text-gray-300">Tickets</span> to see the triage queue &mdash;
-                each row is a guest message the system matched to a reservation, classified, and either drafted a reply for or
-                held for a human. Every ticket here was created by sending a message to the
-                <code class="rounded bg-gray-100 px-1 dark:bg-white/10">POST /api/triage</code> endpoint.
-            </p>
+        <div style="margin-top:1.5rem; padding-top:1.25rem; border-top:1px solid rgba(255,255,255,.08); font-size:.9rem; opacity:.7; line-height:1.55;">
+            <div style="font-weight:600; opacity:.9; margin-bottom:.25rem;">You're in a live demo.</div>
+            Open <strong>Tickets</strong> to see the triage queue &mdash; each row is a guest message the system matched to a
+            reservation, classified, and either drafted a reply for or held for a human. Every ticket was created by sending a
+            message to the <code style="background:rgba(255,255,255,.1); padding:.05rem .3rem; border-radius:4px;">POST /api/triage</code> endpoint.
         </div>
     </x-filament::section>
 </x-filament-widgets::widget>
