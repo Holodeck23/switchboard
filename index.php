@@ -21,8 +21,8 @@ if (! is_dir('/tmp/views')) {
 
 // Serve existing static files (Filament assets, etc.) directly.
 $uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-if ($uri !== '/' && file_exists(__DIR__.'/../public'.$uri)) {
+if ($uri !== '/' && file_exists(__DIR__.'/public'.$uri)) {
     return false;
 }
 
-require __DIR__.'/../public/index.php';
+require __DIR__.'/public/index.php';
