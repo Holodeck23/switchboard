@@ -4,6 +4,7 @@
 // The Lambda filesystem is read-only except /tmp, so redirect every path
 // Laravel needs to write (bootstrap cache, compiled views) into /tmp before boot.
 foreach ([
+    'APP_DEBUG'          => 'false',
     'APP_CONFIG_CACHE'   => '/tmp/config.php',
     'APP_EVENTS_CACHE'   => '/tmp/events.php',
     'APP_PACKAGES_CACHE' => '/tmp/packages.php',
