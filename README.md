@@ -1,58 +1,101 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Switchboard
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A support-triage back office for short-term rental teams, built with Laravel and Filament.
 
-## About Laravel
+Guest messages arrive from every channel — Airbnb, Booking.com, direct email — and a
+support agent has to answer each one with the right context: which stay is this, is the
+guest here right now, what's the WiFi password for *that* apartment, is this urgent. Switchboard
+does the first pass automatically so the agent starts from a drafted answer instead of a blank box.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## What it does
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+A guest message comes in through one endpoint. Switchboard:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+1. **Matches the reservation** from the sender's email — preferring an active stay over an
+   upcoming one over a recent past one, each with a confidence weight.
+2. **Classifies the message** into a category (access, wifi, billing, cleaning, noise, other)
+   and a priority, flagging genuine emergencies like a locked-out guest as urgent.
+3. **Attaches the relevant help article** if one exists for that category.
+4. **Drafts a guest-facing reply** grounded in the real reservation — the actual property's
+   WiFi network, the actual lockbox instructions — never a generic template.
+5. **Scores its own confidence** and, when that's too low to trust, holds the ticket
+   untouched for a human instead of sending a guess.
 
-## Learning Laravel
+Every ticket carries an event timeline recording exactly how it was triaged, so an agent
+can see the machine's reasoning at a glance.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## The API
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```
+POST /api/triage
+{ "from": "anna@example.com", "message": "what's the wifi password?", "channel": "airbnb" }
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+returns
 
-## Contributing
+```json
+{
+  "success": true,
+  "data": {
+    "ticket_id": 8,
+    "category": "wifi",
+    "priority": "normal",
+    "status": "triaged",
+    "confidence": 90,
+    "needs_escalation": false,
+    "draft_reply": "Hi Anna Gruber,\n\nThe WiFi at Alpine Loft is \"AlpineLoft_5G\" ...",
+    "reservation": { "guest_name": "Anna Gruber", "property": "Alpine Loft", "check_in": "2026-07-11", "check_out": "2026-07-16" }
+  },
+  "error": null
+}
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+This is the seam an AI support tool (Intercom Fin, a custom agent) would call: it hands over
+a raw message and gets back structured context plus a review-ready draft. The classifier
+today is deliberately a deterministic keyword pass — a single `MessageClassifier` interface
+that an LLM call slots behind without touching the rest of the pipeline.
 
-## Code of Conduct
+## The admin panel
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+A Filament panel at `/admin` gives the support team the daily view: a ticket queue with
+priority, status, and confidence badges, filters by category and escalation, reservation
+context, and the per-ticket event timeline. Filament rather than Laravel Nova because Nova
+is a paid license and this is a public demo — the two are close analogs.
 
-## Security Vulnerabilities
+## Architecture
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+The triage pipeline is four small, single-purpose classes behind one service:
 
-## License
+| Class | Responsibility |
+|---|---|
+| `ReservationMatcher` | Resolve a guest email to the most relevant reservation |
+| `MessageClassifier` | Category + priority + certainty from message text |
+| `ReplyDrafter` | Compose a context-grounded guest reply |
+| `TriageService` | Orchestrate the above, score confidence, persist ticket + timeline |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Immutable value objects (`Classification`, `MatchResult`) carry results between stages.
+
+## Running it
+
+```bash
+composer install
+cp .env.example .env && php artisan key:generate
+touch database/database.sqlite
+php artisan migrate --seed
+php artisan serve
+```
+
+Admin login (seeded): `demo@switchboard.test` / `switchboard`
+
+## Tests
+
+```bash
+./vendor/bin/pest
+```
+
+18 tests covering the endpoint (each reservation-match path, classification, low-confidence
+escalation, validation errors) and the services in isolation.
+
+## Stack
+
+Laravel 13 · PHP 8.5 · Filament 4 · SQLite · Pest
