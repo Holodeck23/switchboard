@@ -53,7 +53,13 @@ returns
 This is the seam an AI support tool (Intercom Fin, a custom agent) would call: it hands over
 a raw message and gets back structured context plus a review-ready draft. The classifier
 today is deliberately a deterministic keyword pass — a single `MessageClassifier` interface
-that an LLM call slots behind without touching the rest of the pipeline.
+that an LLM call slots behind without touching the rest of the pipeline. Keyword rules carry
+the collisions you'd expect ("password" leans wifi, "code" leans access); the confidence
+score and human-escalation path exist precisely so a shaky classification never auto-sends.
+
+The endpoint is intentionally open in this demo so it can be tried with a single `curl`.
+In production it would sit behind a Sanctum token or signed-webhook check — `laravel/sanctum`
+is already installed for that.
 
 ## The admin panel
 
@@ -96,6 +102,13 @@ Admin login (seeded): `demo@switchboard.test` / `switchboard`
 18 tests covering the endpoint (each reservation-match path, classification, low-confidence
 escalation, validation errors) and the services in isolation.
 
+## Deployment
+
+Deployed on Vercel via the community `vercel-php` runtime (`vercel.json` + the root
+`index.php` entrypoint), backed by a Postgres database. SQLite is used only for local
+development and the test suite; the read-only serverless filesystem means cache and
+compiled-view paths are redirected to `/tmp` at boot.
+
 ## Stack
 
-Laravel 13 · PHP 8.5 · Filament 4 · SQLite · Pest
+Laravel 13 · PHP 8.3 (Vercel runtime) · Filament 4 · Postgres / SQLite · Pest
