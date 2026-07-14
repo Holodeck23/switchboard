@@ -3,6 +3,15 @@
 use App\Models\Reservation;
 use App\Services\Triage\ReservationMatcher;
 
+it('matches the guest email case-insensitively', function () {
+    $reservation = Reservation::factory()->activeNow()->create(['guest_email' => 'anna@example.com']);
+
+    $result = app(ReservationMatcher::class)->match('ANNA@Example.com');
+
+    expect($result)->not->toBeNull()
+        ->and($result->reservation->id)->toBe($reservation->id);
+});
+
 it('prefers an active stay over an upcoming one', function () {
     Reservation::factory()->upcoming()->create(['guest_email' => 'g@example.com']);
     $active = Reservation::factory()->activeNow()->create(['guest_email' => 'g@example.com']);

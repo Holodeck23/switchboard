@@ -4,6 +4,7 @@ namespace App\Services\Triage;
 
 use App\Models\Reservation;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * Resolves a guest email to the most relevant reservation:
@@ -15,10 +16,13 @@ class ReservationMatcher
     {
         $now = $now ?? now();
 
+        // Email is case-insensitive: a guest writing from Anna@Example.com must
+        // still match her reservation stored as anna@example.com.
         $candidates = Reservation::query()
-            ->where('guest_email', $guestEmail)
+            ->whereRaw('lower(guest_email) = ?', [Str::lower($guestEmail)])
             ->where('status', '!=', 'cancelled')
             ->with('property')
+            ->orderBy('check_in')
             ->get();
 
         if ($candidates->isEmpty()) {
